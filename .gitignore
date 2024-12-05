@@ -1,0 +1,6 @@
+publisher/tmp
+subscriber/tmp
+publisher/publisher.json
+subscriber/subscriber.json
+store/*
+!store/.gitkeep

@@ -1,0 +1,179 @@
+services:
+  ziti-nginx-server:
+    image: nginx:1.27
+    ports:
+      - 443:443 # For edge
+      - 80:80 # For ctrl(we use 80 to not get blocket by corp. firewalls)
+    volumes:
+      - ./configs/ziti.conf:/etc/nginx/nginx.conf
+    networks:
+      - ziti
+
+  ziti-controller:
+    image: "${ZITI_IMAGE}:${ZITI_VERSION}"
+    healthcheck:
+      test: curl -m 1 -s -k -f https://${ZITI_CTRL_EDGE_ADVERTISED_ADDRESS:-ziti-edge-controller}:${ZITI_CTRL_EDGE_ADVERTISED_PORT:-1280}/edge/client/v1/version
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    env_file:
+      - ./.env
+    environment:
+      - ZITI_CTRL_NAME=${ZITI_CTRL_NAME:-ziti-edge-controller}
+      - ZITI_CTRL_EDGE_NAME=${ZITI_CTRL_EDGE_NAME:-ziti-edge-controller}
+      - ZITI_CTRL_EDGE_ADVERTISED_ADDRESS=${ZITI_CTRL_EDGE_ADVERTISED_ADDRESS:-ziti-edge-controller}
+      - ZITI_CTRL_EDGE_ADVERTISED_PORT=${ZITI_CTRL_EDGE_ADVERTISED_PORT:-1280}
+      - ZITI_CTRL_EDGE_IP_OVERRIDE=${ZITI_CTRL_EDGE_IP_OVERRIDE:-127.0.0.1}
+      - ZITI_CTRL_ADVERTISED_PORT=${ZITI_CTRL_ADVERTISED_PORT:-6262}
+      - ZITI_EDGE_IDENTITY_ENROLLMENT_DURATION=${ZITI_EDGE_IDENTITY_ENROLLMENT_DURATION}
+      - ZITI_ROUTER_ENROLLMENT_DURATION=${ZITI_ROUTER_ENROLLMENT_DURATION}
+      - ZITI_USER=${ZITI_USER:-admin}
+      - ZITI_PWD=${ZITI_PWD}
+    networks:
+      ziti:
+        aliases:
+          - ziti-edge-controller
+      zac:
+        aliases:
+          - ziti-edge-controller
+      livekit:
+        aliases:
+          - ziti-edge-controller
+    volumes:
+      - ziti:/persistent
+    entrypoint:
+      - "/var/openziti/scripts/run-controller.sh"
+
+  ziti-controller-init-container:
+    image: "${ZITI_IMAGE}:${ZITI_VERSION}"
+    depends_on:
+      ziti-controller:
+        condition: service_healthy
+    environment:
+      - ZITI_CTRL_EDGE_ADVERTISED_ADDRESS=${ZITI_CTRL_EDGE_ADVERTISED_ADDRESS:-ziti-edge-controller}
+      - ZITI_CTRL_EDGE_ADVERTISED_PORT=${ZITI_CTRL_EDGE_ADVERTISED_PORT:-1280}
+    env_file:
+      - ./.env
+    networks:
+      - ziti
+    volumes:
+      - ziti:/persistent
+    entrypoint:
+      - "/var/openziti/scripts/run-with-ziti-cli.sh"
+    command:
+      - "/var/openziti/scripts/access-control.sh"
+
+  ziti-edge-router:
+    image: "${ZITI_IMAGE}:${ZITI_VERSION}"
+    env_file:
+      - ./.env
+    ports:
+      - ${ZITI_INTERFACE:-0.0.0.0}:${ZITI_ROUTER_PORT:-3022}:${ZITI_ROUTER_PORT:-3022}
+      #- ${ZITI_INTERFACE:-0.0.0.0}:${ZITI_ROUTER_LISTENER_BIND_PORT:-10080}:${ZITI_ROUTER_LISTENER_BIND_PORT:-10080}
+    environment:
+      - ZITI_CTRL_ADVERTISED_ADDRESS=${ZITI_CTRL_ADVERTISED_ADDRESS:-ziti-controller}
+      - ZITI_CTRL_ADVERTISED_PORT=${ZITI_CTRL_ADVERTISED_PORT:-6262}
+      - ZITI_CTRL_EDGE_ADVERTISED_ADDRESS=${ZITI_CTRL_EDGE_ADVERTISED_ADDRESS:-ziti-edge-controller}
+      - ZITI_CTRL_EDGE_ADVERTISED_PORT=${ZITI_CTRL_EDGE_ADVERTISED_PORT:-1280}
+      - ZITI_ROUTER_NAME=${ZITI_ROUTER_NAME:-ziti-edge-router}
+      - ZITI_ROUTER_ADVERTISED_ADDRESS=${ZITI_ROUTER_ADVERTISED_ADDRESS:-ziti-edge-router}
+      - ZITI_ROUTER_PORT=${ZITI_ROUTER_PORT:-3022}
+      - ZITI_ROUTER_LISTENER_BIND_PORT=${ZITI_ROUTER_LISTENER_BIND_PORT:-10080}
+      - ZITI_ROUTER_ROLES=public
+    networks:
+      ziti:
+      zac:
+      livekit:
+    volumes:
+      - ziti:/persistent
+    entrypoint: /bin/bash
+    command: "/var/openziti/scripts/run-router.sh edge"
+
+  ziti-console:
+    image: openziti/zac:3.4.7
+    working_dir: /usr/src/app
+    environment:
+      - ZAC_SERVER_CERT_CHAIN=/persistent/pki/${ZITI_CTRL_EDGE_ADVERTISED_ADDRESS:-ziti-edge-controller}-intermediate/certs/${ZITI_CTRL_EDGE_ADVERTISED_ADDRESS:-ziti-edge-controller}-server.cert
+      - ZAC_SERVER_KEY=/persistent/pki/${ZITI_CTRL_EDGE_ADVERTISED_ADDRESS:-ziti-edge-controller}-intermediate/keys/${ZITI_CTRL_EDGE_ADVERTISED_ADDRESS:-ziti-edge-controller}-server.key
+      - ZITI_CTRL_EDGE_ADVERTISED_ADDRESS=${ZITI_CTRL_EDGE_ADVERTISED_ADDRESS:-ziti-edge-controller}
+      - ZITI_CTRL_EDGE_ADVERTISED_PORT=${ZITI_CTRL_EDGE_ADVERTISED_PORT:-1280}
+      - ZITI_CTRL_NAME=${ZITI_CTRL_NAME:-ziti-edge-controller}
+      - PORTTLS=${ZITI_CONSOLE_PORT}
+    depends_on:
+      ziti-edge-router:
+        condition: service_started
+    volumes:
+      - ziti:/persistent
+    networks:
+      - zac
+
+  livekit-server:
+    image: livekit/livekit-server:v1.7
+    command: --config /etc/livekit.yaml --node-ip ${ZITI_SERVICE_LIVEKIT_ADDRESS}
+    environment:
+      PIONS_LOG_TRACE: all
+      PIONS_LOG_DEBUG: all
+      PIONS_LOG_INFO: all
+    volumes:
+      - ./configs/livekit.yaml:/etc/livekit.yaml
+      - ./store:/keys
+    networks:
+      - livekit
+    depends_on:
+      redis-server:
+        condition: service_started
+
+  livekit-nginx-server:
+    image: nginx:1.27
+    volumes:
+      - ./configs/livekit-nginx.conf:/etc/nginx/nginx.conf
+      - ./store:/keys
+      - ./store:/store
+    networks:
+      - livekit
+    depends_on:
+      livekit-server:
+        condition: service_started
+
+  redis-server:
+    image: redis:7-alpine
+    command: redis-server /etc/redis.conf
+    restart: unless-stopped
+    volumes:
+       - ./configs/redis.conf:/etc/redis.conf
+    networks:
+      - livekit
+  
+  publisher-app:
+    build:
+      dockerfile: ./publisher/Dockerfile
+      context: ./
+    networks:
+      - ziti
+    volumes:
+      - ./publisher:/work/publisher
+      - ./lib:/work/lib
+    depends_on:
+      ziti-controller:
+        condition: service_healthy
+
+  subscriber-app:
+    build:
+      dockerfile: ./subscriber/Dockerfile
+      context: ./
+    networks:
+      - ziti
+    volumes:
+      - ./subscriber:/work/subscriber
+      - ./lib:/work/lib
+    depends_on:
+      ziti-controller:
+        condition: service_healthy
+
+volumes:
+  ziti:
+
+networks:
+  ziti:
+  zac:
+  livekit:
