@@ -6,6 +6,7 @@
 package stdnet
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -139,7 +140,10 @@ func (z *ZitiPacketConn) SetWriteDeadline(t time.Time) error {
 
 // ListenPacket announces on the local network address.
 func (n *Net) ListenPacket(network string, address string) (net.PacketConn, error) {
-	dialer := openziti.ZitiContexts.NewDialer()
+	fallback := &openziti.FallbackDialer{
+		UnderlayDialer: &net.Dialer{},
+	}
+	dialer := openziti.ZitiContexts.NewDialerWithFallback(context.Background(), fallback)
 
 	// Dial the Ziti service
 	udpAddr, err := net.ResolveUDPAddr(network, address)
