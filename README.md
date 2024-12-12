@@ -1,5 +1,5 @@
 # ziti-livekit-example
-This is a working example of livekit runing behind openziti. zitified livekit sdk. publisher publishes videostream(a red triangle) to a room and subscriber container receives that stream.
+This is a working example of livekit runing behind openziti(turn UDP, other scenarios not zitified). zitified livekit sdk. publisher publishes videostream(a red triangle) to a room and subscriber container receives that stream.
 
 To use zitified livekit sdk, check out the code in `publisher` and `subscriber` directories.
 
