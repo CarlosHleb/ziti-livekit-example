@@ -39,14 +39,22 @@ func main() {
 	logger.InitFromConfig(&logger.Config{Level: "debug"}, "ziti-livekit")
 	lksdk.SetLogger(logger.GetLogger())
 
+	for {
+		run()
+	}
+}
+
+func run() {
 	err := openziti.InitCon("publisher")
 	if err != nil {
-		panic(err)
+		log.Print(err)
+		return
 	}
 
 	err = connectToLivekit()
 	if err != nil {
-		panic(err)
+		log.Print(err)
+		return
 	}
 
 	redTriangle = drawRedTriangle()
@@ -72,7 +80,8 @@ func main() {
 	}
 	token, err := createLivekitAccessToken(identy, grants)
 	if err != nil {
-		panic(err)
+		log.Print(err)
+		return
 	}
 
 	// Join room with token
@@ -92,17 +101,20 @@ func main() {
 	// Join room
 	err = room.JoinWithToken(livekitEndpoint, token, lksdk.WithICETransportPolicy(webrtc.ICETransportPolicyRelay))
 	if err != nil {
-		panic(err)
+		log.Print(err)
+		return
 	}
 
 	err = setMetadata()
 	if err != nil {
-		panic(err)
+		log.Print(err)
+		return
 	}
 
 	err = publishTrack()
 	if err != nil {
-		panic(err)
+		log.Print(err)
+		return
 	}
 
 	sigChan := make(chan os.Signal, 1)

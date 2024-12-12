@@ -5,7 +5,6 @@ package ice
 
 import (
 	"fmt"
-	"log"
 	"net"
 
 	"github.com/pion/logging"
@@ -96,7 +95,6 @@ func NewMultiUDPMuxFromPort(port int, opts ...UDPMuxFromPortOption) (*MultiUDPMu
 		return nil, err
 	}
 
-	log.Print("NewMultiUDPMuxFromPort")
 	conns := make([]net.PacketConn, 0, len(ips))
 	for _, ip := range ips {
 		conn, listenErr := params.net.ListenUDP("udp", &net.UDPAddr{IP: ip, Port: port})

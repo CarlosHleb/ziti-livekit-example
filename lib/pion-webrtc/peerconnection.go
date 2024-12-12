@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"strconv"
 	"strings"
 	"sync"
@@ -2296,7 +2295,6 @@ func (pc *PeerConnection) GetStats() StatsReport {
 
 // Start all transports. PeerConnection now has enough state
 func (pc *PeerConnection) startTransports(iceRole ICERole, dtlsRole DTLSRole, remoteUfrag, remotePwd, fingerprint, fingerprintHash string) {
-	log.Print("start peer transports")
 	// Start the ice transport
 	err := pc.iceTransport.Start(
 		pc.iceGatherer,
@@ -2318,7 +2316,6 @@ func (pc *PeerConnection) startTransports(iceRole ICERole, dtlsRole DTLSRole, re
 		Fingerprints: []DTLSFingerprint{{Algorithm: fingerprintHash, Value: fingerprint}},
 	})
 	pc.updateConnectionState(pc.ICEConnectionState(), pc.dtlsTransport.State())
-	log.Print("pcstatern", pc.ICEConnectionState().String())
 	if err != nil {
 		pc.log.Warnf("Failed to start manager: %s", err)
 		return

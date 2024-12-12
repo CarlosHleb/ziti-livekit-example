@@ -5,7 +5,6 @@ package ice
 
 import (
 	"context"
-	"log"
 	"net"
 	"sync/atomic"
 	"time"
@@ -48,11 +47,8 @@ func (a *Agent) connect(ctx context.Context, isControlling bool, remoteUfrag, re
 	if err != nil {
 		return nil, err
 	}
-	log.Print("connectivitycheckstart")
 	err = a.startConnectivityChecks(isControlling, remoteUfrag, remotePwd) //nolint:contextcheck
-	log.Print("connectivitycheckkend")
 	if err != nil {
-		log.Print("connectivitycheckerror")
 		return nil, err
 	}
 
@@ -65,7 +61,6 @@ func (a *Agent) connect(ctx context.Context, isControlling bool, remoteUfrag, re
 	case <-a.onConnected:
 	}
 
-	log.Print("didagentconnected")
 	return &Conn{
 		agent: a,
 	}, nil

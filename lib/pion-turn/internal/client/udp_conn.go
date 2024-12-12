@@ -11,11 +11,9 @@ import (
 	"log"
 	"math"
 	"net"
-	"runtime/debug"
 	"time"
 
 	"github.com/pion/stun"
-	"github.com/pion/transport/v2/stdnet"
 	"github.com/pion/turn/v2/internal/proto"
 )
 
@@ -87,9 +85,6 @@ func NewUDPConn(config *AllocationConfig) *UDPConn {
 	if c.refreshPermsTimer.Start() {
 		c.log.Debugf("Started refresh permission timer")
 	}
-
-	log.Print("newUDPCON")
-	log.Print(string(debug.Stack()))
 
 	return c
 }
@@ -202,8 +197,6 @@ func (c *UDPConn) WriteTo(p []byte, addr net.Addr) (int, error) { //nolint: goco
 			if b.state() == bindingStateIdle {
 				b.setState(bindingStateRequest)
 				go func() {
-					log.Print("WHERE: ", addr.String())
-
 					err2 := c.bind(b)
 					if err2 != nil {
 						c.log.Warnf("Failed to bind bind(): %s", err2)
@@ -259,13 +252,6 @@ func (c *UDPConn) WriteTo(p []byte, addr net.Addr) (int, error) { //nolint: goco
 	}()
 
 	// Send via ChannelData
-	// _, err = c.client.WriteTo(p, addr)
-	// if err != nil {
-	// 	log.Print("important error2 ", err)
-	// }
-
-	log.Print("Binding address: ", b.addr.String())
-
 	_, err = c.sendChannelData(p, b.number)
 	if err != nil {
 		return 0, err
@@ -404,7 +390,6 @@ func (c *UDPConn) HandleInbound(data []byte, from net.Addr) {
 	copied := make([]byte, len(data))
 	copy(copied, data)
 
-	log.Print("INNNNBOUUUND ", from.String())
 	select {
 	case c.readCh <- &inboundData{data: copied, from: from}:
 	default:
@@ -455,19 +440,6 @@ func (c *UDPConn) bind(b *binding) error {
 
 	c.log.Debugf("Channel binding successful: %s %d, server address: %s", b.addr.String(), b.number, c.serverAddr)
 
-	log.Print("Important stuff ", b.addr.String())
-	// ne := stdnet.Net{}
-	// conn, err := ne.ListenPacket("udp4", b.addr.String())
-	// if err != nil {
-	// 	log.Print("important error ", err)
-	// }
-	// c.netCon = conn
-
-	err = c.client.GetConn().(*stdnet.ZitiPacketConns).AppendConn(b.addr, "udp4")
-	if err != nil {
-		return errors.New("failed to append conn")
-	}
-
 	// Success.
 	return nil
 }
@@ -477,7 +449,6 @@ func (c *UDPConn) sendChannelData(data []byte, chNum uint16) (int, error) {
 		Data:   data,
 		Number: proto.ChannelNumber(chNum),
 	}
-	log.Print("DO WE SEND DATA?? ", c.serverAddr.String())
 	chData.Encode()
 	_, err := c.client.WriteTo(chData.Raw, c.serverAddr)
 	if err != nil {

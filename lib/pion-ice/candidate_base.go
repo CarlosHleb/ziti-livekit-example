@@ -9,9 +9,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"log"
 	"net"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -205,11 +203,8 @@ func (c *candidateBase) start(a *Agent, conn net.PacketConn, initializedCh <-cha
 		c.agent().log.Warn("Can't start already started candidateBase")
 		return
 	}
-	log.Print("candidatebasestart ", string(debug.Stack()))
 	c.currAgent = a
 	c.conn = conn
-	log.Print("candidatebase start %s, candidate type: %s", conn.LocalAddr().String(), c.candidateType.String())
-	log.Print(string(debug.Stack()))
 	c.closeCh = make(chan struct{})
 	c.closedCh = make(chan struct{})
 
@@ -229,7 +224,6 @@ func (c *candidateBase) recvLoop(initializedCh <-chan struct{}) {
 
 	buf := make([]byte, receiveMTU)
 	for {
-		log.Printf("recvloop conn type is %T", c.conn)
 		n, srcAddr, err := c.conn.ReadFrom(buf)
 		if err != nil {
 			if !(errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed)) {
@@ -238,7 +232,6 @@ func (c *candidateBase) recvLoop(initializedCh <-chan struct{}) {
 			return
 		}
 
-		log.Print("Candidate inbound ", srcAddr.String())
 		c.handleInboundPacket(buf[:n], srcAddr)
 	}
 }
@@ -338,7 +331,6 @@ func (c *candidateBase) close() error {
 }
 
 func (c *candidateBase) writeTo(raw []byte, dst Candidate) (int, error) {
-	log.Printf("candidatebasewriteto %s", dst.addr().String())
 	n, err := c.conn.WriteTo(raw, dst.addr())
 	if err != nil {
 		// If the connection is closed, we should return the error
@@ -494,7 +486,6 @@ func (c *candidateBase) Marshal() string {
 
 // UnmarshalCandidate creates a Candidate from its string representation
 func UnmarshalCandidate(raw string) (Candidate, error) {
-	log.Printf("raw candidate %s", raw)
 	split := strings.Fields(raw)
 	// Foundation not specified: not RFC 8445 compliant but seen in the wild
 	if len(raw) != 0 && raw[0] == ' ' {
@@ -565,8 +556,6 @@ func UnmarshalCandidate(raw string) (Candidate, error) {
 		}
 	}
 
-	log.Printf("Unmarshal candidate: %s. protocol: %s, address: %s, port: %d", typ, protocol, address, port)
-	log.Print(string(debug.Stack()))
 	switch typ {
 	case "host":
 		return NewCandidateHost(&CandidateHostConfig{"", protocol, address, port, component, priority, foundation, tcpType})

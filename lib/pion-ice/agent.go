@@ -8,10 +8,8 @@ package ice
 import (
 	"context"
 	"fmt"
-	"log"
 	"math"
 	"net"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -535,7 +533,6 @@ func (a *Agent) setSelectedPair(p *CandidatePair) {
 	a.selectedCandidatePairNotifier.EnqueueSelectedCandidatePair(p)
 
 	// Signal connected
-	log.Print("setselectedpair ", string(debug.Stack()))
 	a.onConnectedOnce.Do(func() { close(a.onConnected) })
 }
 
@@ -767,7 +764,6 @@ func (a *Agent) addRemotePassiveTCPCandidate(remoteCandidate Candidate) {
 			continue
 		}
 
-		log.Print("addRemotePassiveTCPCandidate")
 		localCandidate.start(a, conn, a.startedCh)
 		a.localCandidates[localCandidate.NetworkType()] = append(a.localCandidates[localCandidate.NetworkType()], localCandidate)
 		a.candidateNotifier.EnqueueCandidate(localCandidate)
@@ -826,15 +822,11 @@ func (a *Agent) addCandidate(ctx context.Context, c Candidate, candidateConn net
 				return
 			}
 		}
-		log.Print("addCandidateDebug")
-		log.Print(string(debug.Stack()))
-		log.Print("attempt to cast zitipacketconn")
 		c.start(a, candidateConn, a.startedCh)
 
 		set = append(set, c)
 		a.localCandidates[c.NetworkType()] = set
 
-		log.Print("candidatenettype ", c.NetworkType().String())
 		if remoteCandidates, ok := a.remoteCandidates[c.NetworkType()]; ok {
 			for _, remoteCandidate := range remoteCandidates {
 				a.addPair(c, remoteCandidate)
@@ -996,7 +988,6 @@ func (a *Agent) sendBindingRequest(m *stun.Message, local, remote Candidate) {
 		isUseCandidate: m.Contains(stun.AttrUseCandidate),
 	})
 
-	log.Print("Sendstun local: ", local.addr().String(), ", remote: ", remote.addr().String())
 	a.sendSTUN(m, local, remote)
 }
 
@@ -1113,7 +1104,6 @@ func (a *Agent) handleInbound(m *stun.Message, local Candidate, remote net.Addr)
 		}
 
 		if remoteCandidate == nil {
-			log.Print("failed to parse ", remote.String())
 			ip, port, networkType, ok := parseAddr(remote)
 			if !ok {
 				a.log.Errorf("Failed to create parse remote net.Addr when creating remote prflx candidate")

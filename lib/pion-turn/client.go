@@ -6,10 +6,8 @@ package turn
 import (
 	b64 "encoding/base64"
 	"fmt"
-	"log"
 	"math"
 	"net"
-	"runtime/debug"
 	"sync"
 	"time"
 
@@ -175,19 +173,15 @@ func (c *Client) Listen() error {
 		return fmt.Errorf("%w: %s", errAlreadyListening, err.Error())
 	}
 
-	log.Print("How many times does this get called?")
-
 	go func() {
 		buf := make([]byte, maxDataBufferSize)
 		for {
-			log.Printf("clients conn type is %T", c.conn)
 			n, from, err := c.conn.ReadFrom(buf)
 			if err != nil {
 				c.log.Debugf("Failed to read: %s. Exiting loop", err)
 				break
 			}
 
-			log.Print("INBOUNDssssUP")
 			_, err = c.HandleInbound(buf[:n], from)
 			if err != nil {
 				c.log.Debugf("Failed to handle inbound message: %s. Exiting loop", err)
@@ -342,8 +336,6 @@ func (c *Client) Allocate() (net.PacketConn, error) {
 		Port: relayed.Port,
 	}
 
-	log.Print("FIX HERE: Relayed address: ", relayedAddr.String())
-
 	c.net.ListenPacket("udp4", relayedAddr.String())
 
 	relayedConn = client.NewUDPConn(&client.AllocationConfig{
@@ -452,7 +444,6 @@ func (c *Client) PerformTransaction(msg *stun.Message, to net.Addr, ignoreResult
 		return client.TransactionResult{}, nil
 	}
 
-	log.Print("performtxstack", string(debug.Stack()))
 	res := tr.WaitForResult()
 	if res.Err != nil {
 		return res, res.Err
@@ -463,7 +454,6 @@ func (c *Client) PerformTransaction(msg *stun.Message, to net.Addr, ignoreResult
 // OnDeallocated is called when de-allocation of relay address has been complete.
 // (Called by UDPConn)
 func (c *Client) OnDeallocated(net.Addr) {
-	log.Print("Do we deallocate??")
 	c.setRelayedUDPConn(nil)
 	c.setTCPAllocation(nil)
 }
@@ -498,7 +488,6 @@ func (c *Client) HandleInbound(data []byte, from net.Addr) (bool, error) {
 	case stun.IsMessage(data):
 		return true, c.handleSTUNMessage(data, from)
 	case proto.IsChannelData(data):
-		log.Print("channel data from ", from.String())
 		return true, c.handleChannelData(data)
 	case c.stunServerAddr != nil && from.String() == c.stunServerAddr.String():
 		// Received from STUN server but it is not a STUN message
@@ -520,17 +509,13 @@ func (c *Client) handleSTUNMessage(data []byte, from net.Addr) error {
 		return fmt.Errorf("%w: %s", errFailedToDecodeSTUN, err.Error())
 	}
 
-	log.Print("msg decoded2: ", msg.String())
-
 	if msg.Type.Class == stun.ClassRequest {
-		log.Print("classreqerror")
 		return fmt.Errorf("%w : %s", errUnexpectedSTUNRequestMessage, msg.String())
 	}
 
 	if msg.Type.Class == stun.ClassIndication {
 		switch msg.Type.Method {
 		case stun.MethodData:
-			log.Print("handlestunmethoddata")
 			var peerAddr proto.PeerAddress
 			if err := peerAddr.GetFrom(msg); err != nil {
 				return err
@@ -554,8 +539,6 @@ func (c *Client) handleSTUNMessage(data []byte, from net.Addr) error {
 			}
 			relayedConn.HandleInbound(data, from)
 		case stun.MethodConnectionAttempt:
-			log.Print("handlestunconnattempt")
-
 			var peerAddr proto.PeerAddress
 			if err := peerAddr.GetFrom(msg); err != nil {
 				return err
@@ -607,7 +590,6 @@ func (c *Client) handleSTUNMessage(data []byte, from net.Addr) error {
 	c.trMap.Delete(trKey)
 	c.mutexTrMap.Unlock()
 
-	log.Print("pretxresult")
 	if !tr.WriteResult(client.TransactionResult{
 		Msg:     msg,
 		From:    from,
@@ -628,8 +610,6 @@ func (c *Client) handleChannelData(data []byte) error {
 		return err
 	}
 
-	log.Print("msg data handle: ", string(chData.Data))
-
 	relayedConn := c.relayedUDPConn()
 	if relayedConn == nil {
 		c.log.Debug("No relayed conn allocated")
@@ -638,7 +618,6 @@ func (c *Client) handleChannelData(data []byte) error {
 
 	addr, ok := relayedConn.FindAddrByChannelNumber(uint16(chData.Number))
 	if !ok {
-		log.Print("failed to find addr by number")
 		return fmt.Errorf("%w: %d", errChannelBindNotFound, int(chData.Number))
 	}
 
@@ -686,7 +665,6 @@ func (c *Client) onRtxTimeout(trKey string, nRtx int) {
 func (c *Client) setRelayedUDPConn(conn *client.UDPConn) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	log.Print("resets?")
 
 	c.relayedConn = conn
 }

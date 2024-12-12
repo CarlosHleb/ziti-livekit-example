@@ -14,8 +14,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"log"
-	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -142,7 +140,6 @@ func (t *DTLSTransport) WriteRTCP(pkts []rtcp.Packet) (int, error) {
 		return 0, err
 	}
 
-	log.Print(string(debug.Stack()))
 	srtcpSession, err := t.getSRTCPSession()
 	if err != nil {
 		return 0, err
@@ -185,7 +182,6 @@ func (t *DTLSTransport) GetRemoteCertificate() []byte {
 }
 
 func (t *DTLSTransport) startSRTP() error {
-	log.Print("startsrtp0000000")
 	srtpConfig := &srtp.Config{
 		Profile:       t.srtpProtectionProfile,
 		BufferFactory: t.api.settingEngine.BufferFactory,
@@ -238,7 +234,6 @@ func (t *DTLSTransport) startSRTP() error {
 		return fmt.Errorf("%w: %v", errFailedToStartSRTCP, err)
 	}
 
-	log.Print("startsrtp111111111")
 	t.srtpSession.Store(srtpSession)
 	t.srtcpSession.Store(srtcpSession)
 	close(t.srtpReady)
@@ -246,7 +241,6 @@ func (t *DTLSTransport) startSRTP() error {
 }
 
 func (t *DTLSTransport) getSRTPSession() (*srtp.SessionSRTP, error) {
-	log.Print(string(debug.Stack()))
 	if value, ok := t.srtpSession.Load().(*srtp.SessionSRTP); ok {
 		return value, nil
 	}
@@ -255,8 +249,6 @@ func (t *DTLSTransport) getSRTPSession() (*srtp.SessionSRTP, error) {
 }
 
 func (t *DTLSTransport) getSRTCPSession() (*srtp.SessionSRTCP, error) {
-	log.Print(string(debug.Stack()))
-
 	if value, ok := t.srtcpSession.Load().(*srtp.SessionSRTCP); ok {
 		return value, nil
 	}

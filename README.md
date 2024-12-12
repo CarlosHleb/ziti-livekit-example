@@ -1,5 +1,7 @@
 # ziti-livekit-example
-This is a non working example(you need to run a openziti tunneler on the host for it to work.)
+This is a working example of livekit runing behind openziti. zitified livekit sdk. publisher publishes videostream(a red triangle) to a room and subscriber container receives that stream.
+
+To use zitified livekit sdk, check out the code in `publisher` and `subscriber` directories.
 
 # Run
 ```bash

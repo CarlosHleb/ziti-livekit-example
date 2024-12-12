@@ -6,7 +6,6 @@ package netctx
 import (
 	"context"
 	"io"
-	"log"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -42,7 +41,6 @@ type packetConn struct {
 
 // NewPacketConn creates a new PacketConn wrapping the given net.PacketConn.
 func NewPacketConn(pconn net.PacketConn) PacketConn {
-	log.Print("NewPacketConn")
 	p := &packetConn{
 		nextConn: pconn,
 		closed:   make(chan struct{}),

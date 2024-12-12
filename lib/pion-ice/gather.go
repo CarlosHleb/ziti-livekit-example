@@ -8,7 +8,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"reflect"
 	"sync"
@@ -19,7 +18,6 @@ import (
 	stunx "github.com/pion/ice/v2/internal/stun"
 	"github.com/pion/logging"
 	"github.com/pion/stun"
-	"github.com/pion/transport/v2/stdnet"
 	"github.com/pion/turn/v2"
 )
 
@@ -118,7 +116,6 @@ func (a *Agent) gatherCandidates(ctx context.Context, done chan struct{}) {
 }
 
 func (a *Agent) gatherCandidatesLocal(ctx context.Context, networkTypes []NetworkType) { //nolint:gocognit
-	log.Print("gatherCandidatesLocalcall")
 	networks := map[string]struct{}{}
 	for _, networkType := range networkTypes {
 		if networkType.IsTCP() {
@@ -189,7 +186,6 @@ func (a *Agent) gatherCandidatesLocal(ctx context.Context, networkTypes []Networ
 						a.log.Warnf("Failed to get TCP connections by ufrag: %s %s %s", network, ip, a.localUfrag)
 						continue
 					}
-					log.Print("muxconnsall?")
 					muxConns = []net.PacketConn{conn}
 				}
 
@@ -306,7 +302,6 @@ func (a *Agent) gatherCandidatesLocalUDPMux(ctx context.Context) error { //nolin
 			continue
 		}
 
-		log.Print("LocalUdpMUX???")
 		if err := a.addCandidate(ctx, c, conn); err != nil {
 			if closeErr := c.close(); closeErr != nil {
 				a.log.Warnf("Failed to close candidate: %v", closeErr)
@@ -555,7 +550,8 @@ func (a *Agent) gatherCandidatesRelay(ctx context.Context, urls []*stun.URI) { /
 
 			switch {
 			case url.Proto == stun.ProtoTypeUDP && url.Scheme == stun.SchemeTypeTURN:
-				if locConn, err = a.net.ListenPacket(network, "0.0.0.0:0"); err != nil {
+				addr := fmt.Sprintf("%s:%d", url.Host, url.Port)
+				if locConn, err = a.net.ListenPacket(network, addr); err != nil {
 					a.log.Warnf("Failed to listen %s: %v", network, err)
 					return
 				}
@@ -598,7 +594,6 @@ func (a *Agent) gatherCandidatesRelay(ctx context.Context, urls []*stun.URI) { /
 				relayProtocol = tcp
 				locConn = turn.NewSTUNConn(conn)
 			case url.Proto == stun.ProtoTypeUDP && url.Scheme == stun.SchemeTypeTURNS:
-				log.Print("UDPWITHTURN")
 				udpAddr, connectErr := a.net.ResolveUDPAddr(network, turnServerAddr)
 				if connectErr != nil {
 					a.log.Warnf("Failed to resolve UDP address %s: %v", turnServerAddr, connectErr)
@@ -625,7 +620,6 @@ func (a *Agent) gatherCandidatesRelay(ctx context.Context, urls []*stun.URI) { /
 				relayProtocol = "dtls"
 				locConn = &fakenet.PacketConn{Conn: conn}
 			case url.Proto == stun.ProtoTypeTCP && url.Scheme == stun.SchemeTypeTURNS:
-				log.Print("CONTROLLLLLLLLLLLLLLLLLLLLLLLLLLLLL ", turnServerAddr)
 				tcpAddr, resolvErr := a.net.ResolveTCPAddr(NetworkTypeTCP4.String(), turnServerAddr)
 				if resolvErr != nil {
 					a.log.Warnf("Failed to resolve relay address %s: %v", turnServerAddr, resolvErr)
@@ -660,8 +654,6 @@ func (a *Agent) gatherCandidatesRelay(ctx context.Context, urls []*stun.URI) { /
 				return
 			}
 
-			log.Printf("aaaaaaaaaaaaaaaaaaaaaaaa %s %+v", relayProtocol, locConn)
-			log.Print("gatherlocalconcastok ", locConn.(*stdnet.ZitiPacketConns))
 			client, err := turn.NewClient(&turn.ClientConfig{
 				TURNServerAddr: turnServerAddr,
 				Conn:           locConn,

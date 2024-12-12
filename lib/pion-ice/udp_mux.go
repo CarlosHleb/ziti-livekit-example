@@ -6,7 +6,6 @@ package ice
 import (
 	"errors"
 	"io"
-	"log"
 	"net"
 	"os"
 	"strings"
@@ -61,7 +60,6 @@ type UDPMuxParams struct {
 
 // NewUDPMuxDefault creates an implementation of UDPMux
 func NewUDPMuxDefault(params UDPMuxParams) *UDPMuxDefault {
-	log.Print("NewUDPMuxDefault")
 	if params.Logger == nil {
 		params.Logger = logging.NewDefaultLoggerFactory().NewLogger("ice")
 	}
@@ -283,7 +281,6 @@ func (m *UDPMuxDefault) connWorker() {
 
 	buf := make([]byte, receiveMTU)
 	for {
-		log.Print("udpmuzconnworker")
 		n, addr, err := m.params.UDPConn.ReadFrom(buf)
 		if m.IsClosed() {
 			return

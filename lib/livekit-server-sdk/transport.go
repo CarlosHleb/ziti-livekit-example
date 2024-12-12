@@ -17,7 +17,6 @@ package lksdk
 import (
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -186,7 +185,6 @@ func NewPCTransport(params PCTransportParams) (*PCTransport, error) {
 	se.SetICETimeouts(iceDisconnectedTimeout, iceFailedTimeout, iceKeepaliveInterval)
 
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(m), webrtc.WithSettingEngine(se), webrtc.WithInterceptorRegistry(i))
-	log.Print("newpeerconnectionhere?")
 	pc, err := api.NewPeerConnection(params.Configuration)
 	if err != nil {
 		return nil, err

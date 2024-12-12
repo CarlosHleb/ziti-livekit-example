@@ -118,7 +118,8 @@ services:
       - ./configs/livekit.yaml:/etc/livekit.yaml
       - ./store:/keys
     networks:
-      - livekit
+      livekit:
+        ipv4_address: 12.12.12.12
     depends_on:
       redis-server:
         condition: service_started
@@ -156,6 +157,8 @@ services:
     depends_on:
       ziti-controller:
         condition: service_healthy
+      livekit-server:
+        condition: service_started
 
   subscriber-app:
     build:
@@ -169,6 +172,8 @@ services:
     depends_on:
       ziti-controller:
         condition: service_healthy
+      livekit-server:
+        condition: service_started
 
 volumes:
   ziti:
@@ -177,3 +182,7 @@ networks:
   ziti:
   zac:
   livekit:
+    ipam:
+      driver: default
+      config:
+        - subnet: 12.12.12.0/24
