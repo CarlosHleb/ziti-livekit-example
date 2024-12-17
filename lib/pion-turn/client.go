@@ -336,7 +336,7 @@ func (c *Client) Allocate() (net.PacketConn, error) {
 		Port: relayed.Port,
 	}
 
-	c.net.ListenPacket("udp4", relayedAddr.String())
+	// c.net.ListenPacket("udp4", relayedAddr.String())
 
 	relayedConn = client.NewUDPConn(&client.AllocationConfig{
 		Client:      c,

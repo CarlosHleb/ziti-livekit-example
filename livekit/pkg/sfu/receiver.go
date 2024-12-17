@@ -584,6 +584,8 @@ func (w *WebRTCReceiver) ReadRTP(buf []byte, layer uint8, sn uint16) (int, error
 		return 0, ErrBufferNotFound
 	}
 
+	log.Print("Does it stop calling this?")
+
 	return b.GetPacket(buf, sn)
 }
 

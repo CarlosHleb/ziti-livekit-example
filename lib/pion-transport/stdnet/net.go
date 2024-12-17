@@ -138,6 +138,8 @@ func (z *ZitiPacketConn) SetWriteDeadline(t time.Time) error {
 	return z.zitiCon.SetWriteDeadline(t)
 }
 
+var allcons []*ZitiPacketConn
+
 // ListenPacket announces on the local network address.
 func (n *Net) ListenPacket(network string, address string) (net.PacketConn, error) {
 	fallback := &openziti.FallbackDialer{
@@ -159,6 +161,17 @@ func (n *Net) ListenPacket(network string, address string) (net.PacketConn, erro
 	}
 
 	zpc := &ZitiPacketConn{zitiCon: conn, network: network, address: udpAddr}
+	allcons = append(allcons, zpc)
+	go func() {
+		for {
+			time.Sleep(1 * time.Second)
+			log.Printf("amountof conns: %d", len(allcons))
+
+			for _, c := range allcons {
+				log.Printf("conn: %s", c.address.String())
+			}
+		}
+	}()
 	return zpc, nil
 }
 
