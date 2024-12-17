@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"log"
+	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,6 +20,7 @@ import (
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
+	"github.com/sirupsen/logrus"
 	"github.com/ziti-livekit-example/lib/openziti"
 )
 
@@ -28,19 +30,23 @@ var (
 	livekitEndpoint   string = "wss://livekit.ziti.example:7880"
 	livekitKey        string = "GAkDU6thrPsKgxl"
 	livekitSecret     string = "tZnZDeJGubl3tHJDPNvqfrQfmEkKcduQo0l23u9HY57"
-	width             int    = 640
-	height            int    = 400
-	framerate         int    = 25
+	width             int    = 1640
+	height            int    = 900
+	framerate         int    = 30
 	redTriangle       *image.RGBA
 	redTriangleBounds image.Rectangle
 )
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	logger.InitFromConfig(&logger.Config{Level: "debug"}, "ziti-livekit")
 	lksdk.SetLogger(logger.GetLogger())
+	logrus.StandardLogger().Level = logrus.DebugLevel
+	rand.Seed(time.Now().UnixNano())
 
 	for {
 		run()
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -57,8 +63,8 @@ func run() {
 		return
 	}
 
-	redTriangle = drawRedTriangle()
-	redTriangleBounds = getRedTriangleBounds()
+	redTriangle = drawRedTriangle(width, height)
+	redTriangleBounds = getRedTriangleBounds(*redTriangle)
 
 	// Create a room
 	roomName := "testroom"
@@ -183,26 +189,30 @@ func setMetadata() error {
 	return nil
 }
 
-func drawRedTriangle() *image.RGBA {
-	// Create a 640x400 RGBA image
+func drawRedTriangle(width int, height int) *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 
 	// Fill the background with white color
-	white := color.RGBA{255, 255, 255, 255}
+	col := color.RGBA{uint8(rand.Intn(255)), uint8(rand.Intn(255)), uint8(rand.Intn(255)), uint8(rand.Intn(255))}
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
-			img.Set(x, y, white)
+			img.Set(x, y, col)
 		}
 	}
 
-	// Draw a red triangle
+	// Define the dimensions of the triangle
+	triangleHeight := height / 3 // Triangle height as a fraction of the image height
+	triangleBase := width / 2    // Triangle base as a fraction of the image width
+
+	// Calculate the triangle's coordinates to center it
+	triangleBaseY := height/2 + triangleHeight/2 // Bottom y-coordinate of the triangle
+	triangleTipY := height/2 - triangleHeight/2  // Top y-coordinate of the triangle
+	triangleBaseX1 := width/2 - triangleBase/2   // Left x-coordinate of the triangle base
+	triangleBaseX2 := width/2 + triangleBase/2   // Right x-coordinate of the triangle base
+	triangleTipX := width / 2                    // x-coordinate of the triangle tip
+
+	// Define the red color for the triangle
 	red := color.RGBA{255, 0, 0, 255}
-	triangleBaseY := 300
-	triangleHeight := 200
-	triangleBaseX1 := 160
-	triangleBaseX2 := 480
-	triangleTipX := (triangleBaseX1 + triangleBaseX2) / 2
-	triangleTipY := triangleBaseY - triangleHeight
 
 	// Fill the triangle using a simple scanline algorithm
 	for y := triangleTipY; y <= triangleBaseY; y++ {
@@ -219,23 +229,8 @@ func drawRedTriangle() *image.RGBA {
 	return img
 }
 
-func getRedTriangleBounds() image.Rectangle {
-	// Triangle vertices
-	triangleBaseX1 := 160
-	triangleBaseX2 := 480
-	triangleBaseY := 300
-	triangleTipX := (triangleBaseX1 + triangleBaseX2) / 2
-	triangleTipY := triangleBaseY - 200
-
-	// Calculate the bounding box
-	minX := min(triangleBaseX1, triangleBaseX2, triangleTipX)
-	maxX := max(triangleBaseX1, triangleBaseX2, triangleTipX)
-	minY := min(triangleBaseY, triangleBaseY, triangleTipY)
-	maxY := max(triangleBaseY, triangleBaseY, triangleTipY)
-
-	// Create image.Rectangle
-	bounds := image.Rect(minX, minY, maxX, maxY)
-	return bounds
+func getRedTriangleBounds(img image.RGBA) image.Rectangle {
+	return img.Bounds()
 }
 
 // From this reader xh264 takes decorated screen captures
@@ -243,6 +238,7 @@ type ScreenCaptureReader struct{}
 
 // Read() Returns a decorated image of the screenToCapture
 func (c ScreenCaptureReader) Read() (image.Image, func(), error) {
+	redTriangle = drawRedTriangle(width, height)
 	return redTriangle, func() {}, nil
 }
 
@@ -253,8 +249,9 @@ func trackOnBind(track *lksdk.LocalTrack) error {
 		log.Print(err)
 		return err
 	}
+
 	// Configure params
-	params.BitRate = 1000000
+	params.BitRate = 2000000
 	params.EnableFrameSkip = false
 	params.UsageType = openh264.ScreenContentRealTime
 
@@ -290,6 +287,7 @@ func trackOnBind(track *lksdk.LocalTrack) error {
 				return err
 			}
 
+			log.Print(len(b))
 			// Send the frame trough track
 			duration := time.Second / time.Duration(framerate)
 			err = track.WriteSample(media.Sample{Data: b, Duration: duration}, &lksdk.SampleWriteOptions{})

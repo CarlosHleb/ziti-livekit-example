@@ -107,14 +107,31 @@ services:
     networks:
       - zac
 
+  # livekit-server-old:
+  #   image: livekit/livekit-server:v1.7
+  #   command: --config /etc/livekit.yaml --node-ip ${ZITI_SERVICE_LIVEKIT_ADDRESS}
+  #   environment:
+  #     PIONS_LOG_TRACE: all
+  #     PIONS_LOG_DEBUG: all
+  #     PIONS_LOG_INFO: all
+  #   volumes:
+  #     - ./configs/livekit.yaml:/etc/livekit.yaml
+  #     - ./store:/keys
+  #   networks:
+  #     livekit:
+  #       ipv4_address: 12.12.12.12
+  #   depends_on:
+  #     redis-server:
+  #       condition: service_started
+    
   livekit-server:
-    image: livekit/livekit-server:v1.7
-    command: --config /etc/livekit.yaml --node-ip ${ZITI_SERVICE_LIVEKIT_ADDRESS}
+    build:
+      dockerfile: ./livekit/Dockerfile
+      context: ./
     environment:
-      PIONS_LOG_TRACE: all
-      PIONS_LOG_DEBUG: all
-      PIONS_LOG_INFO: all
+      - ZITI_SERVICE_LIVEKIT_ADDRESS=${ZITI_SERVICE_LIVEKIT_ADDRESS}
     volumes:
+      - ./livekit:/livekit
       - ./configs/livekit.yaml:/etc/livekit.yaml
       - ./store:/keys
     networks:

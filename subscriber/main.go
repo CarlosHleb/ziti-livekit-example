@@ -2,18 +2,25 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
-	"github.com/livekit/protocol/logger"
 	lksdk "github.com/livekit/server-sdk-go/v2"
+	"github.com/livekit/server-sdk-go/v2/pkg/samplebuilder"
+	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v3/pkg/media"
+	"github.com/pion/webrtc/v3/pkg/media/h264writer"
+	"github.com/pion/webrtc/v3/pkg/media/ivfwriter"
+	"github.com/pion/webrtc/v3/pkg/media/oggwriter"
 	"github.com/ziti-livekit-example/lib/openziti"
 )
 
@@ -25,15 +32,18 @@ var (
 )
 
 func main() {
-	logger.InitFromConfig(&logger.Config{Level: "debug"}, "ziti-livekit")
-	lksdk.SetLogger(logger.GetLogger())
+	// logger.InitFromConfig(&logger.Config{Level: "debug"}, "ziti-livekit")
+	// lksdk.SetLogger(logger.GetLogger())
+	// logrus.StandardLogger().Level = logrus.DebugLevel
 
 	for {
 		run()
+		time.Sleep(1 * time.Second)
 	}
 }
 
 func run() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	err := openziti.InitCon("subscriber")
 	if err != nil {
 		log.Print(err)
@@ -103,6 +113,18 @@ func run() {
 		log.Print(err)
 		return
 	}
+	log.Print("Join successfull.")
+
+	log.Print("conn state ", room.ConnectionState())
+	log.Printf("remote participants %+v", room.GetRemoteParticipants())
+
+	for _, p := range room.GetRemoteParticipants() {
+		log.Print("identity of participant: ", p.Identity())
+
+		if p.Identity() == "publisher" {
+			log.Print("publisher tracks: ", p.TrackPublications())
+		}
+	}
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT)
@@ -156,5 +178,76 @@ func onDataReceived(data []byte) {
 
 func onTrackSubscribed(track *webrtc.TrackRemote, publication *lksdk.RemoteTrackPublication, rp *lksdk.RemoteParticipant) {
 	tracks := fmt.Sprintf("%s-%s", rp.Identity(), track.ID())
-	fmt.Println("new track ", tracks)
+	log.Print("new track ", tracks)
+	NewTrackWriter(track, rp.WritePLI, tracks)
+}
+
+const (
+	maxVideoLate = 1000 // nearly 2s for fhd video
+	maxAudioLate = 200  // 4s for audio
+)
+
+type TrackWriter struct {
+	sb     *samplebuilder.SampleBuilder
+	writer media.Writer
+	track  *webrtc.TrackRemote
+}
+
+func NewTrackWriter(track *webrtc.TrackRemote, pliWriter lksdk.PLIWriter, fileName string) (*TrackWriter, error) {
+	var (
+		sb     *samplebuilder.SampleBuilder
+		writer media.Writer
+		err    error
+	)
+	log.Print("-------", track.Codec().MimeType)
+	switch {
+	case strings.EqualFold(track.Codec().MimeType, "video/vp9"):
+		log.Print("vp999999999")
+		sb = samplebuilder.New(maxVideoLate, &codecs.VP9Packet{}, track.Codec().ClockRate, samplebuilder.WithPacketDroppedHandler(func() {
+			pliWriter(track.SSRC())
+		}))
+		// ivfwriter use frame count as PTS, that might cause video played in a incorrect framerate(fast or slow)
+		writer, err = ivfwriter.New(fileName + ".ivf")
+
+	case strings.EqualFold(track.Codec().MimeType, "video/h264"):
+		sb = samplebuilder.New(maxVideoLate, &codecs.H264Packet{}, track.Codec().ClockRate, samplebuilder.WithPacketDroppedHandler(func() {
+			pliWriter(track.SSRC())
+		}))
+		writer, err = h264writer.New(fileName + ".h264")
+
+	case strings.EqualFold(track.Codec().MimeType, "audio/opus"):
+		sb = samplebuilder.New(maxAudioLate, &codecs.OpusPacket{}, track.Codec().ClockRate)
+		writer, err = oggwriter.New(fileName+".ogg", 48000, track.Codec().Channels)
+
+	default:
+		return nil, errors.New("unsupported codec type")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	t := &TrackWriter{
+		sb:     sb,
+		writer: writer,
+		track:  track,
+	}
+	go t.start()
+	return t, nil
+}
+
+func (t *TrackWriter) start() {
+	defer t.writer.Close()
+	for {
+		pkt, _, err := t.track.ReadRTP()
+		if err != nil {
+			break
+		}
+		t.sb.Push(pkt)
+
+		for _, p := range t.sb.PopPackets() {
+			// t.writer.WriteRTP(p)
+			log.Print(len(p.Payload))
+		}
+	}
 }

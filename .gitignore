@@ -1,6 +1,10 @@
 publisher/tmp
 subscriber/tmp
+subscriber/publisher-TR_*
 publisher/publisher.json
 subscriber/subscriber.json
 store/*
 !store/.gitkeep
+logs.txt
+notes.md
+livekit-logs.txt

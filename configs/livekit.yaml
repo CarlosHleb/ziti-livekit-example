@@ -35,3 +35,4 @@ keys:
 logging:
   # log level, valid values: debug, info, warn, error
   level: debug
+#   pion_level: debug
