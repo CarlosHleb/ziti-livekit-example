@@ -306,6 +306,8 @@ func (b *Buffer) Bind(params webrtc.RTPParameters, codec webrtc.RTPCodecCapabili
 
 // Write adds an RTP Packet, ordering is not guaranteed, newer packets may arrive later
 func (b *Buffer) Write(pkt []byte) (n int, err error) {
+	// log.Print("writeshouldspam ", string(debug.Stack()))
+	log.Printf("writelen %s", len(pkt))
 	var rtpPacket rtp.Packet
 	err = rtpPacket.Unmarshal(pkt)
 	if err != nil {

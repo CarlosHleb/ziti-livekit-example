@@ -16,6 +16,7 @@ package rtc
 
 import (
 	"context"
+	"log"
 	"math"
 	"strings"
 	"sync"
@@ -197,6 +198,7 @@ func (t *MediaTrack) AddReceiver(receiver *webrtc.RTPReceiver, track *webrtc.Tra
 
 	var lastRR uint32
 	rtcpReader.OnPacket(func(bytes []byte) {
+		log.Print("rtcpReader onpacket")
 		pkts, err := rtcp.Unmarshal(bytes)
 		if err != nil {
 			t.params.Logger.Errorw("could not unmarshal RTCP", err)

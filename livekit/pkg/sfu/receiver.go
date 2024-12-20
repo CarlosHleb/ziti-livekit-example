@@ -707,6 +707,7 @@ func (w *WebRTCReceiver) forwardRTP(layer int32) {
 			log.Print("Did the buffer eoffed?")
 			return
 		}
+		log.Printf("len of pkt %d", len(pkt.RawPacket))
 
 		spatialTracker := tracker
 		spatialLayer := layer
