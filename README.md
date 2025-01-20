@@ -24,6 +24,8 @@ sudo systemctl restart ziti-edge-tunnel.service
 
 Now go back to first terminal, Ctrl+C and then run `docker compose up` again. if you have a running tuneler on your host with admin1 identity added, you should see `publisher-app` and `subscriber-app` sending and receiving udp packets in logs.
 
+If you encounter any issues, try restart `publisher-app`/`subscriber-app` containers.
+
 # uninstall
 ```bash
 ./uninstall.sh
