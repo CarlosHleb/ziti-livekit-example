@@ -9,3 +9,4 @@ logs.txt
 notes.md
 livekit-logs.txt
 livekit/tmp
+*/.vscode

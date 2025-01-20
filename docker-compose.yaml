@@ -87,7 +87,7 @@ services:
     volumes:
       - ziti:/persistent
     entrypoint: /bin/bash
-    command: "/var/openziti/scripts/run-router.sh edge"
+    command: "/var/openziti/scripts/run-router.sh edge --verbose"
 
   ziti-console:
     image: openziti/zac:3.4.7
@@ -107,31 +107,14 @@ services:
     networks:
       - zac
 
-  # livekit-server-old:
-  #   image: livekit/livekit-server:v1.7
-  #   command: --config /etc/livekit.yaml --node-ip ${ZITI_SERVICE_LIVEKIT_ADDRESS}
-  #   environment:
-  #     PIONS_LOG_TRACE: all
-  #     PIONS_LOG_DEBUG: all
-  #     PIONS_LOG_INFO: all
-  #   volumes:
-  #     - ./configs/livekit.yaml:/etc/livekit.yaml
-  #     - ./store:/keys
-  #   networks:
-  #     livekit:
-  #       ipv4_address: 12.12.12.12
-  #   depends_on:
-  #     redis-server:
-  #       condition: service_started
-    
   livekit-server:
-    build:
-      dockerfile: ./livekit/Dockerfile
-      context: ./
+    image: livekit/livekit-server:v1.7
+    command: --config /etc/livekit.yaml --node-ip ${ZITI_SERVICE_LIVEKIT_ADDRESS}
     environment:
-      - ZITI_SERVICE_LIVEKIT_ADDRESS=${ZITI_SERVICE_LIVEKIT_ADDRESS}
+      PIONS_LOG_TRACE: all
+      PIONS_LOG_DEBUG: all
+      PIONS_LOG_INFO: all
     volumes:
-      - ./livekit:/livekit
       - ./configs/livekit.yaml:/etc/livekit.yaml
       - ./store:/keys
     networks:
